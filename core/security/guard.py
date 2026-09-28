@@ -5,9 +5,9 @@ class Decision(str,Enum): ALLOW='ALLOW'; SECURITY_ATTACK='SECURITY_ATTACK'; PRIV
 @dataclass(frozen=True)
 class SecurityResult: decision:Decision; reason:str; redacted:str
 INJECTION=[r'ignore (all|previous|prior).*(instruction|prompt)',r'ignore (todas?|qualquer).*(instru[cç][oõ]es?|regras?)',r'(revele|mostre).*(prompt do sistema|instru[cç][oõ]es internas)',r'jailbreak',r'bypass.*(guard|security|seguran[cç]a)']
-SECRET=[r'(mostre|liste|extraia|revele|retorne|imprima).*(senha|password|token|api[_ -]?key|secret|chave privada|credential)']
-PII_BULK=[r'(liste|mostre|extraia|exporte|retorne|imprima|dump).*(cpfs?|cns|pacientes?|nomes completos|e-?mails?)']
-CPF=re.compile(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}'); EMAIL=re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+SECRET=[r'\b(mostre|liste|extraia|revele|retorne|imprima)\b.*\b(senha|password|token|api[_ -]?key|secret|chave privada|credential)\b']
+PII_BULK=[r'\b(liste|mostre|extraia|exporte|retorne|imprima|dump)\b.*\b(cpfs?|cns|pacientes?|nomes completos|e-?mails?)\b']
+CPF=re.compile(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b'); EMAIL=re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
 def _m(ps,t): return any(re.search(p,t,re.I|re.S) for p in ps)
 def redact_pii(t): return EMAIL.sub('[EMAIL-MASCARADO]',CPF.sub('[CPF-MASCARADO]',t))
 def inspect_question(t,max_chars):

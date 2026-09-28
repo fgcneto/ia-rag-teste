@@ -17,13 +17,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - run: python -m compileall -q .
+      - name: Compile Python
+        run: python -m compileall -q .
 
-      - run: pytest -q
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Check migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: pytest -q
 
       - name: Validate Docker Compose
         run: |
           cp .env.example .env
-          docker compose --env-file .env.example config >/dev/null
+          docker compose --env-file .env config >/dev/null

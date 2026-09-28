@@ -12,3 +12,7 @@ staticfiles/
 *.zip
 .idea/
 .vscode/
+
+# Editor temporary files
+*.swp
+*.swo

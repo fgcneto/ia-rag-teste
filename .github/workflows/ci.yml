@@ -10,6 +10,28 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ai_knowledge
+          POSTGRES_USER: ai_knowledge
+          POSTGRES_PASSWORD: CHANGE_ME
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ai_knowledge -d ai_knowledge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_NAME: ai_knowledge
+      DB_USER: ai_knowledge
+      DB_PASSWORD: CHANGE_ME
+
     steps:
       - uses: actions/checkout@v4
 

@@ -26,11 +26,11 @@ jobs:
           --health-retries 5
 
     env:
-      DB_HOST: localhost
-      DB_PORT: "5432"
-      DB_NAME: ai_knowledge
-      DB_USER: ai_knowledge
-      DB_PASSWORD: CHANGE_ME
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ai_knowledge
+      POSTGRES_USER: ai_knowledge
+      POSTGRES_PASSWORD: CHANGE_ME
 
     steps:
       - uses: actions/checkout@v4

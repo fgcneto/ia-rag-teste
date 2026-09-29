@@ -1,17 +1,17 @@
 services:
  postgres:
-  image: pgvector/pgvector:pg16
+  image: docker.io/pgvector/pgvector:pg16
   environment: {POSTGRES_DB: ai_knowledge, POSTGRES_USER: ai_knowledge, POSTGRES_PASSWORD: CHANGE_ME}
   volumes: [pgdata:/var/lib/postgresql/data]
   healthcheck: {test: ["CMD-SHELL","pg_isready -U ai_knowledge -d ai_knowledge"], interval: 5s, timeout: 3s, retries: 20}
   networks: [backend]
  redis:
-  image: redis:7-alpine
+  image: docker.io/library/redis:7-alpine
   command: ["redis-server","--appendonly","yes"]
   volumes: [redisdata:/data]
   networks: [backend]
  ollama:
-  image: ollama/ollama:latest
+  image: docker.io/ollama/ollama:latest
   environment: {OLLAMA_HOST: "0.0.0.0:11434", OLLAMA_NUM_PARALLEL: "1", OLLAMA_MAX_LOADED_MODELS: "1", OLLAMA_KEEP_ALIVE: "30m"}
   volumes: [ollama:/root/.ollama]
   networks: [backend]

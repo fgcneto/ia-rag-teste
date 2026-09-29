@@ -39,4 +39,7 @@ GITHUB_API_URL=env('GITHUB_API_URL','https://api.github.com'); GITHUB_API_VERSIO
 GITHUB_ALLOWED_REPOSITORIES={x.strip().lower() for x in env('GITHUB_ALLOWED_REPOSITORIES','').split(',') if x.strip()}
 SOURCE_PROVIDER=env('SOURCE_PROVIDER','github')
 PRESIDIO_ENABLED=env_bool('PRESIDIO_ENABLED',True); PRESIDIO_ANALYZER_URL=env('PRESIDIO_ANALYZER_URL','http://presidio-analyzer:3000')
+PRESIDIO_LANGUAGE=env('PRESIDIO_LANGUAGE','en'); PRESIDIO_TIMEOUT_SECONDS=float(env('PRESIDIO_TIMEOUT_SECONDS','15')); PRESIDIO_FAIL_CLOSED=env_bool('PRESIDIO_FAIL_CLOSED',True)
+INGEST_MAX_FILE_BYTES=int(env('INGEST_MAX_FILE_BYTES','524288')); INGEST_CHUNK_CHARS=int(env('INGEST_CHUNK_CHARS','1600')); INGEST_CHUNK_OVERLAP=int(env('INGEST_CHUNK_OVERLAP','200')); INGEST_EMBED_BATCH_SIZE=int(env('INGEST_EMBED_BATCH_SIZE','16')); INGEST_EMBED_DIMENSIONS=int(env('INGEST_EMBED_DIMENSIONS','768'))
+INGEST_ALLOWED_EXTENSIONS={x.strip().lower() for x in env('INGEST_ALLOWED_EXTENSIONS','.py,.js,.ts,.tsx,.jsx,.java,.kt,.go,.rs,.cs,.php,.rb,.sql,.html,.htm,.css,.scss,.vue,.svelte,.xml,.json,.yaml,.yml,.toml,.ini,.cfg,.conf,.properties,.md,.rst,.txt,.sh,.ps1,.bat,.cmd,.dockerfile').split(',') if x.strip()}
 LOGGING={'version':1,'disable_existing_loggers':False,'formatters':{'jsonish':{'format':'%(asctime)s %(levelname)s %(name)s %(message)s'}},'handlers':{'console':{'class':'logging.StreamHandler','formatter':'jsonish'}},'root':{'handlers':['console'],'level':env('LOG_LEVEL','INFO')}}

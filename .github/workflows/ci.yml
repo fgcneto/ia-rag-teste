@@ -10,6 +10,28 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ai_knowledge
+          POSTGRES_USER: ai_knowledge
+          POSTGRES_PASSWORD: CHANGE_ME
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ai_knowledge -d ai_knowledge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ai_knowledge
+      POSTGRES_USER: ai_knowledge
+      POSTGRES_PASSWORD: CHANGE_ME
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,13 +39,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - run: python -m compileall -q .
+      - name: Compile Python
+        run: python -m compileall -q .
 
-      - run: pytest -q
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Check migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: pytest -q
 
       - name: Validate Docker Compose
         run: |
           cp .env.example .env
-          docker compose --env-file .env.example config >/dev/null
+          docker compose --env-file .env config >/dev/null

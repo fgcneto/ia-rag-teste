@@ -20,3 +20,94 @@ class SyncJob(models.Model):
     status=models.CharField(max_length=30,default='QUEUED',db_index=True); task_id=models.CharField(max_length=100,blank=True,null=True,db_index=True)
     requested_by=models.CharField(max_length=255,blank=True,null=True); started_at=models.DateTimeField(blank=True,null=True); finished_at=models.DateTimeField(blank=True,null=True)
     result_json=models.JSONField(default=dict); error=models.TextField(blank=True,null=True); created_at=models.DateTimeField(auto_now_add=True)
+class ProjectSyncRun(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "QUEUED", "Queued"
+        RUNNING = "RUNNING", "Running"
+        SKIPPED = "SKIPPED", "Skipped"
+        DONE = "DONE", "Done"
+        FAILED = "FAILED", "Failed"
+        EXPIRED = "EXPIRED", "Expired"
+
+    job = models.ForeignKey(
+        SyncJob,
+        on_delete=models.CASCADE,
+        related_name="project_runs",
+    )
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="sync_runs",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.QUEUED,
+        db_index=True,
+    )
+
+    task_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
+    target_sha = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
+    force = models.BooleanField(default=False)
+
+    lease_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    finished_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    result_json = models.JSONField(default=dict)
+
+    error = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["job", "project"],
+                name="uq_sync_run_job_project",
+            ),
+            models.UniqueConstraint(
+                fields=["project"],
+                condition=models.Q(
+                    status__in=["QUEUED", "RUNNING"],
+                ),
+                name="uq_active_project_sync",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(status__in=["QUEUED", "RUNNING"])
+                    | models.Q(lease_expires_at__isnull=False)
+                ),
+                name="ck_active_sync_has_lease",
+            ),
+        ]

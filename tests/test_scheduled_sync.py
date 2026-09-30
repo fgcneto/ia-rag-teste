@@ -2,11 +2,18 @@ import pytest
 from django.db import IntegrityError, transaction
 from types import SimpleNamespace
 from knowledge import tasks
-
+from datetime import timedelta
+from django.utils import timezone
 from knowledge.models import SyncJob
 from knowledge.services.scheduled_sync import (
     SCHEDULED_REQUESTED_BY,
     reserve_scheduled_sync_job,
+)
+
+from knowledge.models import (
+    Project,
+    ProjectSyncRun,
+    SyncJob,
 )
 
 
@@ -111,8 +118,8 @@ def test_integrity_error_falls_back_to_active_job(
 
     monkeypatch.setattr(
         "knowledge.services.scheduled_sync._active_scheduled_job",
-        lambda: next(responses),
-    )
+        lambda *args, **kwargs: next(responses),
+        )
 
     def raise_integrity_error(*args, **kwargs):
         raise IntegrityError(
@@ -266,3 +273,180 @@ def test_scheduled_tick_marks_job_failed_when_dispatch_fails(
     assert job.status == SyncJob.Status.FAILED
     assert job.finished_at is not None
     assert "synthetic broker failure" in job.error
+
+@pytest.mark.django_db(transaction=True)
+def test_stale_scheduled_job_is_recovered():
+    now = timezone.now()
+
+    old = SyncJob.objects.create(
+        status=SyncJob.Status.RUNNING,
+        requested_by=SCHEDULED_REQUESTED_BY,
+        started_at=now - timedelta(hours=3),
+    )
+
+    result = reserve_scheduled_sync_job(
+        now=now,
+        stale_after_seconds=7200,
+    )
+
+    old.refresh_from_db()
+
+    assert old.status == SyncJob.Status.FAILED
+    assert old.finished_at == now
+    assert old.result_json["stale_recovery"][
+        "stale_after_seconds"
+    ] == 7200
+
+    assert result.created is True
+    assert result.reason == "recovered_stale_job"
+    assert result.job.id != old.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_recent_scheduled_job_is_not_recovered():
+    now = timezone.now()
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.RUNNING,
+        requested_by=SCHEDULED_REQUESTED_BY,
+        started_at=now - timedelta(minutes=30),
+    )
+
+    result = reserve_scheduled_sync_job(
+        now=now,
+        stale_after_seconds=7200,
+    )
+
+    job.refresh_from_db()
+
+    assert result.created is False
+    assert result.reason == "active_job"
+    assert result.job.id == job.id
+    assert job.status == SyncJob.Status.RUNNING
+
+
+@pytest.mark.django_db(transaction=True)
+def test_live_project_lease_prevents_stale_recovery():
+    now = timezone.now()
+
+    project = Project.objects.create(
+        provider=Project.Provider.GITHUB,
+        external_id="live-lease",
+        path_with_namespace="synthetic/live-lease",
+        name="live-lease",
+        web_url="https://example.invalid/live-lease",
+        default_branch="main",
+        enabled=True,
+    )
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.RUNNING,
+        requested_by=SCHEDULED_REQUESTED_BY,
+        started_at=now - timedelta(hours=3),
+    )
+
+    ProjectSyncRun.objects.create(
+        job=job,
+        project=project,
+        status=ProjectSyncRun.Status.RUNNING,
+        lease_expires_at=now + timedelta(minutes=10),
+    )
+
+    result = reserve_scheduled_sync_job(
+        now=now,
+        stale_after_seconds=7200,
+    )
+
+    job.refresh_from_db()
+
+    assert result.created is False
+    assert result.reason == "active_job"
+    assert job.status == SyncJob.Status.RUNNING
+
+
+@pytest.mark.django_db(transaction=True)
+def test_expired_run_is_closed_during_stale_recovery():
+    now = timezone.now()
+
+    project = Project.objects.create(
+        provider=Project.Provider.GITHUB,
+        external_id="expired-lease",
+        path_with_namespace="synthetic/expired-lease",
+        name="expired-lease",
+        web_url="https://example.invalid/expired-lease",
+        default_branch="main",
+        enabled=True,
+    )
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.RUNNING,
+        requested_by=SCHEDULED_REQUESTED_BY,
+        started_at=now - timedelta(hours=3),
+    )
+
+    run = ProjectSyncRun.objects.create(
+        job=job,
+        project=project,
+        status=ProjectSyncRun.Status.RUNNING,
+        lease_expires_at=now - timedelta(minutes=1),
+    )
+
+    result = reserve_scheduled_sync_job(
+        now=now,
+        stale_after_seconds=7200,
+    )
+
+    job.refresh_from_db()
+    run.refresh_from_db()
+
+    assert job.status == SyncJob.Status.FAILED
+    assert run.status == ProjectSyncRun.Status.EXPIRED
+    assert run.lease_expires_at is None
+    assert run.finished_at == now
+
+    assert result.created is True
+    assert result.reason == "recovered_stale_job"
+
+@pytest.mark.django_db(transaction=True)
+def test_stale_job_with_terminal_runs_is_finalized():
+    now = timezone.now()
+
+    project = Project.objects.create(
+        provider=Project.Provider.GITHUB,
+        external_id="terminal-stale",
+        path_with_namespace="synthetic/terminal-stale",
+        name="terminal-stale",
+        web_url="https://example.invalid/terminal-stale",
+        default_branch="main",
+        enabled=True,
+    )
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.RUNNING,
+        requested_by=SCHEDULED_REQUESTED_BY,
+        started_at=now - timedelta(hours=3),
+        result_json={
+            "dispatch_complete": True,
+        },
+    )
+
+    ProjectSyncRun.objects.create(
+        job=job,
+        project=project,
+        status=ProjectSyncRun.Status.SKIPPED,
+        finished_at=now - timedelta(hours=2),
+        target_sha="synthetic-sha",
+    )
+
+    result = reserve_scheduled_sync_job(
+        now=now,
+        stale_after_seconds=7200,
+    )
+
+    job.refresh_from_db()
+
+    assert job.status == SyncJob.Status.DONE
+    assert job.finished_at == now
+
+    assert result.created is True
+    assert result.job.id != job.id

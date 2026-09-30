@@ -207,3 +207,71 @@ def claim_project_sync(
         claimed=True,
         reason="recovered" if recovered else "claimed",
     )
+
+@transaction.atomic
+def finish_project_sync(
+    *,
+    run_id: int,
+    status: str,
+    result_json=None,
+    error: str | None = None,
+    target_sha: str | None = None,
+    task_id: str | None = None,
+    now=None,
+) -> ProjectSyncRun:
+    if status not in TERMINAL_STATUSES:
+        raise ValueError(
+            f"Status terminal inválido: {status}"
+        )
+
+    now = now or timezone.now()
+
+    run = (
+        ProjectSyncRun.objects
+        .select_for_update()
+        .get(pk=run_id)
+    )
+
+    # Finalização idempotente.
+    if run.status in TERMINAL_STATUSES:
+        return run
+
+    # Evita que um worker antigo finalize uma execução
+    # que já tenha sido recuperada por outro worker.
+    if (
+        task_id
+        and run.task_id
+        and run.task_id != task_id
+    ):
+        raise RuntimeError(
+            "ProjectSyncRun pertence a outra task."
+        )
+
+    run.status = status
+    run.finished_at = now
+    run.lease_expires_at = None
+
+    if target_sha:
+        run.target_sha = target_sha
+
+    if result_json is not None:
+        metadata = dict(run.result_json or {})
+        metadata["ingestion"] = result_json
+        run.result_json = metadata
+
+    if error is not None:
+        run.error = error
+
+    run.save(
+        update_fields=[
+            "status",
+            "finished_at",
+            "lease_expires_at",
+            "target_sha",
+            "result_json",
+            "error",
+            "updated_at",
+        ]
+    )
+
+    return run

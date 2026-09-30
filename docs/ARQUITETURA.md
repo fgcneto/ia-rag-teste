@@ -56,8 +56,8 @@ Streaming da resposta para o navegador
 Serviços auxiliares:
 
 ```text
-Redis -> Celery Worker / Beat
-Presidio Analyzer -> capacidade preparada para DLP/PII
+Redis -> Celery Worker / Beat -> sincronização assíncrona e agendada
+Presidio Analyzer -> análise complementar de PII na ingestão
 GitHub Provider -> fonte atual, somente leitura
 GitLab Provider -> evolução futura para ambiente institucional
 ```
@@ -72,7 +72,7 @@ GitLab Provider -> evolução futura para ambiente institucional
 | LLM | Ollama + Qwen3 4B | Geração local das respostas |
 | Embeddings | `nomic-embed-text` | Representação vetorial do conhecimento |
 | Banco | PostgreSQL + pgvector | Dados, ACL, chunks, vetores e auditoria |
-| Jobs | Celery + Redis | Processamento e sincronizações assíncronas |
+| Jobs | Celery + Redis | Processamento, agendamento e sincronizações assíncronas |
 | Source control | GitHub Provider | Consulta read-only a repositórios |
 | Privacidade | Security Guard / Presidio | Proteções contra PII, segredos e abuso |
 
@@ -209,31 +209,24 @@ A abstração de provider foi criada para permitir a troca da fonte sem alterar 
 
 Na v0.3.0, o GitLab Provider ainda não deve ser considerado operacional.
 
-## 9. Estado da indexação na v0.3.0
+## 9. Indexação e sincronização da base de conhecimento
 
-A arquitetura já possui:
+A base de conhecimento possui pipeline seguro de ingestão para os repositórios autorizados do provider configurado.
 
-- modelo `KnowledgeChunk`;
-- PostgreSQL/pgvector;
-- geração de embedding da pergunta;
-- recuperação vetorial;
-- provider GitHub;
-- leitura de metadados e fontes suportadas pelo provider.
-
-Entretanto, o pipeline completo de ingestão ainda é uma etapa de evolução.
-
-Estado esperado:
+Fluxo de ingestão:
 
 ```text
-GitHub
+Source control read-only
+  ↓
+allowlist
   ↓
 coleta de conteúdo
   ↓
-filtros de arquivos
+filtros de caminho/extensão
   ↓
 secret scanner
   ↓
-DLP / PII
+PII / LGPD
   ↓
 sanitização
   ↓
@@ -243,10 +236,43 @@ nomic-embed-text
   ↓
 KnowledgeChunk
   ↓
-pgvector
+PostgreSQL + pgvector
 ```
 
-Esse pipeline deve ser concluído antes da homologação para uso institucional.
+A sincronização é assíncrona e coordenada pelo Celery:
+
+```text
+Celery Beat
+  ↓
+scheduled_sync_tick
+  ↓
+guard global de SyncJob
+  ↓
+sync_repositories
+  ↓
+ProjectSyncRun por projeto
+  ↓
+sync_project_run
+  ↓
+finalize_sync_job
+```
+
+O PostgreSQL é a fonte de verdade para o estado dos jobs, exclusividade e leases. O Redis atua como broker/backend do Celery, mas não é utilizado como lock distribuído da sincronização.
+
+A exclusividade ocorre em dois níveis:
+
+1. somente um `SyncJob` periódico pode permanecer ativo para `requested_by=celery-beat`;
+2. somente um `ProjectSyncRun` pode permanecer ativo por projeto.
+
+Execuções manuais não são bloqueadas pelo guard global do Beat, mas continuam sujeitas à exclusividade por projeto.
+
+A incrementalidade implementada atualmente é baseada no SHA do repositório. Quando o SHA remoto é igual a `last_repository_sha`, a execução termina como `SKIPPED` antes de percorrer novamente a árvore, sanitizar arquivos ou recalcular embeddings.
+
+Delta incremental em nível de arquivo permanece como evolução futura.
+
+O mecanismo de stale recovery reconcilia jobs antigos antes de classificá-los como falha e respeita `ProjectSyncRun` com lease ainda válida. Isso evita que uma task perdida bloqueie indefinidamente os ciclos periódicos seguintes.
+
+Os detalhes de operação e diagnóstico estão em `SINCRONIZACAO_CONHECIMENTO.md`.
 
 ## 10. Serviços em containers
 
@@ -286,6 +312,8 @@ Em produção, o `web` deve ficar atrás de proxy reverso com HTTPS.
 
 - `SEGURANCA.md`
 - `ROADMAP.md`
+- `SECURE_INGESTION.md`
+- `SINCRONIZACAO_CONHECIMENTO.md`
 - `../SECURITY.md`
 - `../GIT_WORKFLOW.md`
 - `Documentacao_Tecnica_AI_Knowledge_Django_MCP_v0.3.0.docx`

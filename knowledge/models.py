@@ -17,9 +17,57 @@ class KnowledgeChunk(models.Model):
     embedding=VectorField(dimensions=768); created_at=models.DateTimeField(auto_now_add=True)
     class Meta: constraints=[models.UniqueConstraint(fields=['project','source_type','source_key','chunk_index'],name='uq_current_chunk')]
 class SyncJob(models.Model):
-    status=models.CharField(max_length=30,default='QUEUED',db_index=True); task_id=models.CharField(max_length=100,blank=True,null=True,db_index=True)
-    requested_by=models.CharField(max_length=255,blank=True,null=True); started_at=models.DateTimeField(blank=True,null=True); finished_at=models.DateTimeField(blank=True,null=True)
-    result_json=models.JSONField(default=dict); error=models.TextField(blank=True,null=True); created_at=models.DateTimeField(auto_now_add=True)
+    class Status(models.TextChoices):
+        QUEUED = "QUEUED", "Queued"
+        RUNNING = "RUNNING", "Running"
+        DONE = "DONE", "Done"
+        PARTIAL = "PARTIAL", "Partial"
+        FAILED = "FAILED", "Failed"
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.QUEUED,
+        db_index=True,
+    )
+    task_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    requested_by = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+    finished_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+    result_json = models.JSONField(default=dict)
+    error = models.TextField(
+        blank=True,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["requested_by"],
+                condition=models.Q(
+                    requested_by="celery-beat",
+                    status__in=["QUEUED", "RUNNING"],
+                ),
+                name="uq_active_scheduled_sync_job",
+            ),
+        ]
 class ProjectSyncRun(models.Model):
     class Status(models.TextChoices):
         QUEUED = "QUEUED", "Queued"

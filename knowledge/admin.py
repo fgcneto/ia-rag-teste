@@ -29,6 +29,22 @@ class ReadOnlyExecutionAdminMixin:
     ):
         return False
 
+    def has_view_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        opts = self.model._meta
+
+        return (
+            request.user.has_perm(
+                f"{opts.app_label}.view_{opts.model_name}"
+            )
+            or request.user.has_perm(
+                f"{opts.app_label}.change_{opts.model_name}"
+            )
+        )
+
     def has_delete_permission(
         self,
         request,

@@ -313,6 +313,32 @@ def test_mixed_children_finalize_as_partial():
 
 
 @pytest.mark.django_db(transaction=True)
+def test_finalize_does_not_reprocess_terminal_job():
+    finished_at = timezone.now()
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.FAILED,
+        finished_at=finished_at,
+        result_json={
+            "dispatch_complete": True,
+            "stale_recovery": {
+                "recovered_at": finished_at.isoformat(),
+            },
+        },
+    )
+
+    finalize_sync_job(job.id)
+
+    job.refresh_from_db()
+
+    assert job.status == SyncJob.Status.FAILED
+    assert job.finished_at == finished_at
+    assert job.result_json["stale_recovery"][
+        "recovered_at"
+    ] == finished_at.isoformat()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_dispatch_failure_does_not_leave_queued_run(
     settings,
     monkeypatch,

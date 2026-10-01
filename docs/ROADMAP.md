@@ -2,13 +2,13 @@
 
 **Repositório:** `fgcneto/ia-rag-teste`  
 **Versão base:** `v0.3.0`  
-**Atualizado em:** 17/09/2026
+**Atualizado em:** 30/09/2026
 
 ## 1. Objetivo
 
 Este documento registra evoluções planejadas para o AI Knowledge.
 
-Itens deste arquivo são propostas ou trabalhos futuros e não devem ser interpretados como funcionalidades já disponíveis na versão v0.3.0.
+A seção de estado atual registra capacidades já disponíveis. As demais seções descrevem evoluções planejadas e não devem ser interpretadas como funcionalidades implementadas, salvo indicação explícita.
 
 ## 2. Estado atual — v0.3.0
 
@@ -30,17 +30,23 @@ A base atual contém:
 - GitHub provider read-only;
 - auditoria básica;
 - Security Guard;
-- estrutura para Celery/Redis;
-- preparação para Presidio.
+- pipeline seguro de ingestão com secret scanning e sanitização de PII;
+- Presidio integrado ao pipeline de ingestão;
+- Celery Worker/Beat + Redis para sincronização assíncrona;
+- sincronização periódica opcional e desabilitada por padrão;
+- incrementalidade por SHA de repositório;
+- `SyncJob` e `ProjectSyncRun` com exclusividade e leases persistidas;
+- stale recovery para ciclos periódicos órfãos;
+- observabilidade de execução no Django Admin em modo somente leitura.
 
 A v0.3.0 permanece um MVP técnico em validação.
 
-## 3. Prioridade imediata — ingestão segura
+## 3. Base implementada — ingestão segura
 
-A principal evolução é concluir o pipeline de indexação.
+O pipeline seguro de indexação foi implementado e permanece sujeito a validação contínua de segurança, desempenho e qualidade.
 
 ```text
-GitHub / GitLab
+GitHub (provider atual)
       ↓
 coleta de conteúdo autorizado
       ↓
@@ -61,7 +67,7 @@ KnowledgeChunk
 PostgreSQL + pgvector
 ```
 
-Requisitos:
+Propriedades da implementação:
 
 - respeitar allowlist;
 - nunca indexar projeto não autorizado à instância;
@@ -69,9 +75,11 @@ Requisitos:
 - detectar segredos;
 - detectar PII;
 - registrar origem, branch e commit;
-- permitir reindexação incremental;
+- permitir reindexação incremental por SHA;
 - remover chunks obsoletos;
 - manter rastreabilidade.
+
+Delta incremental em nível de arquivo permanece planejado para evolução posterior.
 
 ## 4. v0.3.1 — hardening e qualidade
 
@@ -96,14 +104,13 @@ Escopo sugerido:
 
 Escopo possível:
 
-- pipeline completo de ingestão segura;
 - GitLab Self-Managed Provider;
 - leitura de repositórios;
 - Issues;
 - Merge Requests;
 - Wiki/documentação;
 - commits;
-- sincronização incremental;
+- delta incremental em nível de arquivo;
 - migração do CI para GitLab CI quando necessário.
 
 A integração GitLab deve permanecer somente leitura.
@@ -297,6 +304,8 @@ docs/
 ├── ARQUITETURA.md
 ├── SEGURANCA.md
 ├── ROADMAP.md
+├── SECURE_INGESTION.md
+├── SINCRONIZACAO_CONHECIMENTO.md
 └── ...
 ```
 
@@ -324,6 +333,14 @@ Evolução futura possível:
 A ACL final deve continuar sendo validada server-side.
 
 ## 12. Auditoria e observabilidade
+
+Base já implementada:
+
+- `SyncJob` para rastrear o ciclo global de sincronização;
+- `ProjectSyncRun` para rastrear a execução de cada projeto;
+- status, timestamps, task IDs, SHA alvo, leases, resultados e erros persistidos;
+- Django Admin somente leitura para registros de execução;
+- isolamento de falhas por projeto e agregação global `DONE`, `PARTIAL` e `FAILED`.
 
 Evoluções:
 

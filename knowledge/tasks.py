@@ -12,6 +12,9 @@ from knowledge.services.sync_runs import (
     finish_project_sync,
     reserve_project_sync,
 )
+from knowledge.services.scheduled_sync import (
+    reserve_scheduled_sync_job,
+)
 
 
 LEASE_SECONDS = int(
@@ -130,6 +133,70 @@ def sync_project_run(
         )
 
         raise
+
+
+@shared_task(bind=True)
+def scheduled_sync_tick(self):
+    reservation = reserve_scheduled_sync_job()
+    job = reservation.job
+
+    if not reservation.created:
+        return {
+            "job_id": job.id,
+            "created": False,
+            "dispatched": False,
+            "reason": reservation.reason,
+            "status": job.status,
+        }
+
+    payload = dict(job.result_json or {})
+
+    if self.request.id:
+        payload["trigger_task_id"] = self.request.id
+
+        job.result_json = payload
+        job.save(
+            update_fields=[
+                "result_json",
+            ]
+        )
+
+    try:
+        result = sync_repositories.delay(
+            job_id=job.id,
+            force=False,
+        )
+
+    except Exception as exc:
+        job.status = SyncJob.Status.FAILED
+        job.error = repr(exc)
+        job.finished_at = timezone.now()
+
+        job.save(
+            update_fields=[
+                "status",
+                "error",
+                "finished_at",
+            ]
+        )
+
+        raise
+
+    job.task_id = result.id
+
+    job.save(
+        update_fields=[
+            "task_id",
+        ]
+    )
+
+    return {
+        "job_id": job.id,
+        "created": True,
+        "dispatched": True,
+        "task_id": result.id,
+        "reason": reservation.reason,
+    }
 
 
 @shared_task(bind=True)

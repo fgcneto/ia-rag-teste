@@ -30,6 +30,50 @@ SESSION_COOKIE_SECURE=env_bool('COOKIE_SECURE',False); CSRF_COOKIE_SECURE=env_bo
 SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO','https')
 CELERY_BROKER_URL=env('REDIS_URL','redis://redis:6379/0'); CELERY_RESULT_BACKEND=CELERY_BROKER_URL
 CELERY_TASK_TRACK_STARTED=True; CELERY_TASK_TIME_LIMIT=3600
+KNOWLEDGE_SYNC_ENABLED = env_bool(
+    "KNOWLEDGE_SYNC_ENABLED",
+    False,
+)
+
+KNOWLEDGE_SYNC_INTERVAL_SECONDS = int(
+    env(
+        "KNOWLEDGE_SYNC_INTERVAL_SECONDS",
+        "3600",
+    )
+)
+
+if KNOWLEDGE_SYNC_INTERVAL_SECONDS <= 0:
+    raise ValueError(
+        "KNOWLEDGE_SYNC_INTERVAL_SECONDS "
+        "deve ser maior que zero."
+    )
+
+CELERY_BEAT_SCHEDULE = {}
+
+if KNOWLEDGE_SYNC_ENABLED:
+    CELERY_BEAT_SCHEDULE = {
+        "scheduled-knowledge-sync": {
+            "task": (
+                "knowledge.tasks."
+                "scheduled_sync_tick"
+            ),
+            "schedule": (
+                KNOWLEDGE_SYNC_INTERVAL_SECONDS
+            ),
+        },
+    }
+KNOWLEDGE_SYNC_STALE_AFTER_SECONDS = int(
+    env(
+        "KNOWLEDGE_SYNC_STALE_AFTER_SECONDS",
+        "7200",
+    )
+)
+
+if KNOWLEDGE_SYNC_STALE_AFTER_SECONDS <= 0:
+    raise ValueError(
+        "KNOWLEDGE_SYNC_STALE_AFTER_SECONDS "
+        "deve ser maior que zero."
+    )
 OLLAMA_URL=env('OLLAMA_URL','http://ollama:11434'); OLLAMA_CHAT_MODEL=env('OLLAMA_CHAT_MODEL','qwen3:4b'); OLLAMA_EMBED_MODEL=env('OLLAMA_EMBED_MODEL','nomic-embed-text')
 OLLAMA_NUM_CTX=int(env('OLLAMA_NUM_CTX','4096')); OLLAMA_NUM_PREDICT=int(env('OLLAMA_NUM_PREDICT','192')); OLLAMA_NUM_THREAD=int(env('OLLAMA_NUM_THREAD','8'))
 RAG_TOP_K=int(env('RAG_TOP_K','3')); RAG_MIN_SIMILARITY=float(env('RAG_MIN_SIMILARITY','0.48')); RAG_MAX_CONTEXT_CHARS=int(env('RAG_MAX_CONTEXT_CHARS','4500')); RAG_MAX_CHUNK_CHARS=int(env('RAG_MAX_CHUNK_CHARS','1800'))

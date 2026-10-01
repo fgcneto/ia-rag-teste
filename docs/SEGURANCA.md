@@ -2,7 +2,7 @@
 
 **Repositório:** `fgcneto/ia-rag-teste`  
 **Versão de referência:** `v0.3.0`  
-**Data de referência:** 17/09/2026
+**Data de referência:** 30/09/2026
 
 ## 1. Objetivo
 
@@ -39,6 +39,8 @@ Para GitHub, o token deve ser limitado aos repositórios explicitamente necessá
 Para o futuro GitLab institucional, a conta de serviço também deve ser criada sem privilégios administrativos e sem escopos de escrita.
 
 A ausência de métodos de escrita no código não é suficiente: a credencial também deve ser read-only.
+
+Celery Worker e Celery Beat não alteram esse modelo de privilégio. As tasks de ingestão devem operar com as mesmas credenciais read-only do provider e o agendamento não deve introduzir qualquer escopo de escrita no source control.
 
 ## 4. ACL por projeto
 
@@ -157,9 +159,9 @@ tokens
 arquivos contendo segredos detectados
 ```
 
-O pipeline futuro de ingestão deve executar secret scanning antes da criação de embeddings.
+O pipeline de ingestão executa secret scanning antes da criação de embeddings. Conteúdo identificado como segredo é bloqueado e não deve ser persistido no índice vetorial.
 
-Ferramentas como Gitleaks ou equivalente podem ser integradas ao pipeline e ao CI.
+Ferramentas como Gitleaks ou equivalente também podem complementar esse controle no CI.
 
 O repositório da aplicação também não deve versionar:
 
@@ -211,17 +213,17 @@ Sanitizar apenas a resposta é insuficiente se o dado sensível já tiver sido a
 
 ## 10. Presidio
 
-O ambiente possui preparação para Microsoft Presidio Analyzer.
+O Microsoft Presidio Analyzer está integrado ao pipeline de ingestão como camada complementar às regras determinísticas locais de mascaramento de PII.
 
-Na v0.3.0, ele não deve ser descrito como DLP completo de ponta a ponta enquanto sua integração integral ao pipeline de ingestão e consulta não estiver validada.
+Essa integração não deve ser descrita como DLP completo de ponta a ponta. A cobertura depende da configuração ativa, das entidades reconhecidas e da validação do comportamento para o domínio institucional.
 
 Antes da produção:
 
-- integrar Presidio ao pipeline;
-- testar reconhecimento em português;
+- validar reconhecimento em português;
 - avaliar falsos positivos;
 - avaliar falsos negativos;
 - definir quais entidades devem ser bloqueadas, mascaradas ou permitidas;
+- validar a política de falha fechada para indisponibilidade do analisador;
 - testar somente com dados sintéticos ou devidamente autorizados.
 
 ## 11. Output Guard
@@ -250,6 +252,10 @@ Eventos relevantes devem registrar, no mínimo:
 - bloqueio e motivo;
 - modelo utilizado;
 - versão da política.
+
+A sincronização da base de conhecimento também produz registros operacionais auditáveis em `SyncJob` e `ProjectSyncRun`, incluindo origem da execução, status, task IDs, timestamps, SHA alvo, lease, resultado e erro quando aplicável.
+
+No Django Admin, esses registros de execução devem permanecer somente leitura, sem criação, edição ou exclusão manual.
 
 Sempre que possível, evitar registrar perguntas contendo dados pessoais em texto claro.
 
@@ -337,9 +343,11 @@ Fine-tuning, caso seja adotado futuramente, também não substitui nenhum desses
 | Prompt injection guard | Básico / parcial |
 | Output guard | Básico |
 | PII masking | Básico |
-| Presidio end-to-end | Pendente |
-| Secret scanner na ingestão | Pendente |
-| Pipeline seguro de indexação | Pendente |
+| Presidio no pipeline de ingestão | Implementado |
+| Secret scanner na ingestão | Implementado |
+| Pipeline seguro de indexação | Implementado |
+| Exclusividade e leases de sincronização | Implementado |
+| Registros de execução read-only no Admin | Implementado |
 | Testes de segurança completos | Pendente |
 | SIEM / retenção formal | Pendente |
 | Hardening HTTPS de produção | Dependente do deploy |

@@ -37,6 +37,13 @@ def finalize_sync_job(
         .get(pk=job_id)
     )
 
+    if job.status in {
+        SyncJob.Status.DONE,
+        SyncJob.Status.PARTIAL,
+        SyncJob.Status.FAILED,
+    }:
+        return job
+
     payload = dict(job.result_json or {})
 
     # Um child pode terminar enquanto o orquestrador

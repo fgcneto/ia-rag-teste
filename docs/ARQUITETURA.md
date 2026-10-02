@@ -293,6 +293,10 @@ Somente a aplicação web deve precisar de exposição externa.
 
 PostgreSQL, Redis, Ollama e MCP devem permanecer em rede interna.
 
+Em hosts Linux, os pré-requisitos operacionais do Redis, incluindo a
+verificação de `vm.overcommit_memory`, estão documentados em
+`SINCRONIZACAO_CONHECIMENTO.md`.
+
 Em produção, o `web` deve ficar atrás de proxy reverso com HTTPS.
 
 ## 11. Princípios arquiteturais

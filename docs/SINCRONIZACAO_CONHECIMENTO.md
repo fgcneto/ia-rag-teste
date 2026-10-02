@@ -201,6 +201,36 @@ Antes de alterar estado no banco, verificar:
 
 Não corrigir jobs manualmente no banco sem preservar primeiro as evidências de diagnóstico.
 
+### 10.5 Pré-requisito de memória do Redis em Linux
+
+Em hosts Linux que executam Redis, deve ser verificado o parâmetro de
+kernel `vm.overcommit_memory`.
+
+O Redis recomenda `vm.overcommit_memory=1`, pois a configuração desabilitada
+pode causar falhas em operações que utilizam processos em background, como
+persistência RDB, especialmente sob pressão de memória.
+
+Verificação no host:
+
+```bash
+sysctl vm.overcommit_memory
+```
+
+Aplicação temporária, válida até a reinicialização do host:
+
+```bash
+sudo sysctl vm.overcommit_memory=1
+```
+
+A persistência dessa configuração deve seguir a política operacional do
+ambiente, por exemplo por configuração administrada em `/etc/sysctl.d/` ou
+mecanismo equivalente de infraestrutura.
+
+Esse parâmetro pertence ao kernel do host e não deve ser tratado como
+mecanismo de exclusividade da sincronização. O PostgreSQL continua sendo a
+fonte de verdade para jobs, leases e guards; o Redis permanece como
+broker/backend do Celery.
+
 ## 11. Segurança operacional
 
 A sincronização não amplia as permissões do source control.

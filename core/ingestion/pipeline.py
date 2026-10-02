@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from core.ingestion.security import inspect_repository_content
@@ -109,6 +109,17 @@ def _replace_chunks(project_id: int, rows: list[dict], repository_sha: str) -> i
     return len(rows)
 
 
+def _replace_chunks_from_async(
+    project_id: int,
+    rows: list[dict],
+    repository_sha: str,
+) -> int:
+    try:
+        return _replace_chunks(project_id, rows, repository_sha)
+    finally:
+        connection.close()
+
+
 async def ingest_project(provider, project: Project, force: bool = False) -> IngestionStats:
     if not project.enabled:
         raise ValueError("Projeto desabilitado não pode ser indexado.")
@@ -170,7 +181,11 @@ async def ingest_project(provider, project: Project, force: bool = False) -> Ing
             })
         files_indexed += 1
 
-    written = await sync_to_async(_replace_chunks)(project.id, rows, commit_sha)
+    written = await sync_to_async(_replace_chunks_from_async)(
+        project.id,
+        rows,
+        commit_sha,
+    )
     return IngestionStats(
         project.id, project.path_with_namespace, commit_sha,
         files_seen, files_indexed, files_skipped, files_secret_blocked, written, False,

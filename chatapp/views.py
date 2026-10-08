@@ -8,7 +8,7 @@ from core.security.guard import (
     inspect_question, Decision, SECURITY_RESPONSE, PRIVACY_RESPONSE,
     SECRET_RESPONSE, NO_EVIDENCE_RESPONSE, question_hash,
 )
-from core.rag.service import answer_stream
+from core.rag.service import answer_stream, GroundingValidationError
 from core.llm.ollama import EmptyGenerationError
 from core.mcp.client import search_knowledge_via_mcp
 from accounts.services import authorized_projects_sync, resolve_query_scope
@@ -95,7 +95,7 @@ async def chat_stream(request):
         try:
             async for delta in answer_stream(sec.redacted, sources):
                 yield event('delta', text=delta)
-        except EmptyGenerationError as exc:
+        except (EmptyGenerationError, GroundingValidationError) as exc:
             await sync_to_async(AuditEvent.objects.create)(
                 user=request.user, event_type='chat', decision='LLM_ERROR',
                 reason=type(exc).__name__, question_hash=question_hash(question),

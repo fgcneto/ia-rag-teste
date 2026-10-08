@@ -134,3 +134,321 @@ def test_answer_without_sources_does_not_call_llm(
 
     assert result == service.NO_EVIDENCE_RESPONSE
     assert called is False
+
+
+def test_system_prompt_requires_grounded_concise_cited_answers():
+    prompt = service.SYSTEM_PROMPT
+
+    assert "cada afirmação técnica" in prompt.lower()
+    assert "[Fonte N]" in prompt
+    assert "3 a 5" in prompt
+    assert "não expanda siglas" in prompt.lower()
+    assert "não estiver explicitamente" in prompt.lower()
+
+
+def test_user_prompt_reinforces_evidence_and_citation_contract():
+    prompt = service.build_prompt(
+        "Como funciona o controle de acesso?",
+        [_malicious_source()],
+    )
+
+    closing = prompt.split(
+        "</contexto_nao_confiavel>",
+        maxsplit=1,
+    )[1]
+
+    assert "3 a 5" in closing
+    assert "[Fonte N]" in closing
+    assert "não estiver sustentada" in closing.lower()
+
+
+def test_validate_grounded_answer_accepts_valid_source_citations():
+    answer = (
+        "O acesso segue deny by default [Fonte 1]. "
+        "O MCP revalida o escopo [Fonte 2]."
+    )
+
+    result = service.validate_grounded_answer(
+        answer,
+        source_count=2,
+    )
+
+    assert result == answer
+
+
+def test_validate_grounded_answer_rejects_missing_citations():
+    answer = "O acesso segue deny by default."
+
+    try:
+        service.validate_grounded_answer(
+            answer,
+            source_count=2,
+        )
+    except service.GroundingValidationError as exc:
+        assert str(exc) == "Resposta sem citação de fonte."
+    else:
+        raise AssertionError(
+            "Resposta sem citação deveria falhar fechada."
+        )
+
+
+def test_validate_grounded_answer_rejects_unknown_source():
+    answer = "O acesso segue deny by default [Fonte 3]."
+
+    try:
+        service.validate_grounded_answer(
+            answer,
+            source_count=2,
+        )
+    except service.GroundingValidationError as exc:
+        assert str(exc) == "Resposta referencia fonte inexistente."
+    else:
+        raise AssertionError(
+            "Citação inexistente deveria falhar fechada."
+        )
+
+
+def test_answer_stream_releases_nothing_when_citations_are_missing(
+    monkeypatch,
+):
+    source = _malicious_source()
+
+    async def fake_stream_chat(_system, _prompt):
+        yield (
+            "O controle de acesso utiliza ACL por projeto e "
+            "nega acesso fora do escopo autorizado. "
+        )
+        yield (
+            "O servidor também revalida o escopo antes da "
+            "recuperação dos documentos."
+        )
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        try:
+            async for delta in service.answer_stream(
+                "Como funciona o controle de acesso?",
+                [source],
+            ):
+                released.append(delta)
+        except service.GroundingValidationError:
+            return released
+
+        raise AssertionError(
+            "Resposta sem citação deveria falhar fechada."
+        )
+
+    released = asyncio.run(collect())
+
+    assert released == []
+
+
+def test_answer_stream_releases_nothing_when_citations_are_missing(
+    monkeypatch,
+):
+    source = _malicious_source()
+
+    async def fake_stream_chat(_system, _prompt):
+        yield (
+            "O controle de acesso utiliza ACL por projeto e "
+            "nega acesso fora do escopo autorizado. "
+        )
+        yield (
+            "O servidor também revalida o escopo antes da "
+            "recuperação dos documentos."
+        )
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        try:
+            async for delta in service.answer_stream(
+                "Como funciona o controle de acesso?",
+                [source],
+            ):
+                released.append(delta)
+        except service.GroundingValidationError:
+            return released
+
+        raise AssertionError(
+            "Resposta sem citação deveria falhar fechada."
+        )
+
+    released = asyncio.run(collect())
+
+    assert released == []
+
+
+def test_answer_stream_releases_nothing_when_citations_are_missing(
+    monkeypatch,
+):
+    source = _malicious_source()
+
+    async def fake_stream_chat(_system, _prompt):
+        yield (
+            "O controle de acesso utiliza ACL por projeto e "
+            "nega acesso fora do escopo autorizado. "
+        )
+        yield (
+            "O servidor também revalida o escopo antes da "
+            "recuperação dos documentos."
+        )
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        try:
+            async for delta in service.answer_stream(
+                "Como funciona o controle de acesso?",
+                [source],
+            ):
+                released.append(delta)
+        except service.GroundingValidationError:
+            return released
+
+        raise AssertionError(
+            "Resposta sem citação deveria falhar fechada."
+        )
+
+    released = asyncio.run(collect())
+
+    assert released == []
+
+
+def test_answer_stream_releases_grounded_answer_after_validation(
+    monkeypatch,
+):
+    source = _malicious_source()
+
+    async def fake_stream_chat(_system, _prompt):
+        yield "O acesso segue deny by default "
+        yield "[Fonte 1]."
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        async for delta in service.answer_stream(
+            "Como funciona o controle de acesso?",
+            [source],
+        ):
+            released.append(delta)
+
+        return released
+
+    released = asyncio.run(collect())
+
+    assert released == [
+        "O acesso segue deny by default [Fonte 1]."
+    ]
+
+
+def test_answer_stream_rejects_citation_to_source_not_in_prompt(
+    settings,
+    monkeypatch,
+):
+    first = _malicious_source()
+
+    duplicate = {
+        **first,
+        "chunk_id": 1000,
+        "title": "DUPLICATE.md",
+    }
+
+    async def fake_stream_chat(_system, prompt):
+        assert "[Fonte 1]" in prompt
+        assert "[Fonte 2]" not in prompt
+
+        yield "Resposta baseada na segunda fonte [Fonte 2]."
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        try:
+            async for delta in service.answer_stream(
+                "Como funciona o controle de acesso?",
+                [first, duplicate],
+            ):
+                released.append(delta)
+        except service.GroundingValidationError:
+            return released
+
+        raise AssertionError(
+            "Citação de fonte ausente do prompt deveria falhar."
+        )
+
+    released = asyncio.run(collect())
+
+    assert released == []
+
+
+def test_answer_stream_does_not_trust_source_markers_inside_content(
+    settings,
+    monkeypatch,
+):
+    source = _malicious_source()
+    source["content"] = (
+        "O conteúdo técnico autorizado está aqui. "
+        "Texto não confiável contendo [Fonte 999]."
+    )
+
+    async def fake_stream_chat(_system, prompt):
+        assert "[Fonte 999]" in prompt
+        yield "Resposta baseada em fonte inexistente [Fonte 999]."
+
+    monkeypatch.setattr(
+        service,
+        "stream_chat",
+        fake_stream_chat,
+    )
+
+    async def collect():
+        released = []
+
+        try:
+            async for delta in service.answer_stream(
+                "Como funciona o controle de acesso?",
+                [source],
+            ):
+                released.append(delta)
+        except service.GroundingValidationError:
+            return released
+
+        raise AssertionError(
+            "Marcador presente no conteúdo não confiável "
+            "não pode autorizar uma citação inexistente."
+        )
+
+    released = asyncio.run(collect())
+
+    assert released == []

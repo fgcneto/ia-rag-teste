@@ -8,11 +8,30 @@ async def embed(texts):
 async def chat(system,user):
     async with httpx.AsyncClient(timeout=httpx.Timeout(600,connect=15)) as c:
         r=await c.post(settings.OLLAMA_URL.rstrip('/')+'/api/chat',json=payload(system,user,False));r.raise_for_status();return r.json()['message']['content']
+class EmptyGenerationError(RuntimeError):
+    """Raised when the LLM stream finishes without assistant content."""
+
+
 async def stream_chat(system,user)->AsyncIterator[str]:
+    saw_content = False
+    done_reason = None
+
     async with httpx.AsyncClient(timeout=httpx.Timeout(600,connect=15)) as c:
       async with c.stream('POST',settings.OLLAMA_URL.rstrip('/')+'/api/chat',json=payload(system,user,True)) as r:
        r.raise_for_status()
        async for line in r.aiter_lines():
         if not line: continue
-        obj=json.loads(line); text=(obj.get('message') or {}).get('content') or ''
-        if text: yield text
+        obj=json.loads(line)
+        text=(obj.get('message') or {}).get('content') or ''
+
+        if text:
+         saw_content = True
+         yield text
+
+        if obj.get('done'):
+         done_reason = obj.get('done_reason')
+
+    if not saw_content:
+     raise EmptyGenerationError(
+         f'LLM generation finished without content; done_reason={done_reason or "unknown"}'
+     )

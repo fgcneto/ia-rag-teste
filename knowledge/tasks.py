@@ -6,16 +6,15 @@ from django.utils import timezone
 from core.ingestion.pipeline import ingest_project
 from core.providers.factory import get_source_provider
 from knowledge.models import Project, ProjectSyncRun, SyncJob
+from knowledge.services.scheduled_sync import (
+    reserve_scheduled_sync_job,
+)
 from knowledge.services.sync_jobs import finalize_sync_job
 from knowledge.services.sync_runs import (
     claim_project_sync,
     finish_project_sync,
     reserve_project_sync,
 )
-from knowledge.services.scheduled_sync import (
-    reserve_scheduled_sync_job,
-)
-
 
 LEASE_SECONDS = int(
     getattr(

@@ -1,6 +1,8 @@
 from asgiref.sync import sync_to_async
-from .models import Role
+
 from knowledge.models import Project
+
+from .models import Role
 
 
 def allowed_project_ids_sync(user):

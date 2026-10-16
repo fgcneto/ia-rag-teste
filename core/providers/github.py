@@ -1,8 +1,12 @@
 import base64
 from urllib.parse import quote
+
 import httpx
 from django.conf import settings
+
 from .base import SourceControlProvider
+
+
 class GitHubProvider(SourceControlProvider):
  def __init__(self,token=None): self.base=settings.GITHUB_API_URL.rstrip('/'); self.token=token or settings.GITHUB_SERVICE_TOKEN
  @property

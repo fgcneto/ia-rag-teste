@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from knowledge.models import Project, ProjectSyncRun
 
-
 ACTIVE_STATUSES = {
     ProjectSyncRun.Status.QUEUED,
     ProjectSyncRun.Status.RUNNING,

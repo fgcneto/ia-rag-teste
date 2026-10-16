@@ -1,6 +1,9 @@
+import hashlib
+import re
 from dataclasses import dataclass
 from enum import Enum
-import hashlib,re
+
+
 class Decision(str,Enum): ALLOW='ALLOW'; SECURITY_ATTACK='SECURITY_ATTACK'; PRIVACY_VIOLATION='PRIVACY_VIOLATION'; SECRET_REQUEST='SECRET_REQUEST'; TOO_LARGE='TOO_LARGE'
 @dataclass(frozen=True)
 class SecurityResult: decision:Decision; reason:str; redacted:str

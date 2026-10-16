@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import UserAccessProfile,UserProjectAccess
+
+from .models import UserAccessProfile, UserProjectAccess
+
+
 class UserProjectAccessInline(admin.TabularInline):
     model=UserProjectAccess; extra=0; autocomplete_fields=['project']
 @admin.register(UserAccessProfile)

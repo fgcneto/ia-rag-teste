@@ -1,13 +1,18 @@
-import os,json
+import json
+import os
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings')
 import django
+
 django.setup()
+from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
 from mcp.server.fastmcp import FastMCP
-from asgiref.sync import sync_to_async
-from core.mcp.auth import verify_actor_token
+
 from accounts.services import allowed_project_ids
+from core.mcp.auth import verify_actor_token
 from core.rag.service import retrieve
+
 mcp=FastMCP('AI Knowledge - Knowledge Server', host='0.0.0.0', port=8001)
 @mcp.tool()
 async def search_knowledge(actor_token:str,question:str,project_ids:list[int])->str:

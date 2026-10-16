@@ -5,7 +5,6 @@ from django.utils import timezone
 
 from knowledge.models import ProjectSyncRun, SyncJob
 
-
 TERMINAL_STATUSES = {
     ProjectSyncRun.Status.SKIPPED,
     ProjectSyncRun.Status.DONE,

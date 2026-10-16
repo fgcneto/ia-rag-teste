@@ -13,7 +13,6 @@ from knowledge.services.scheduled_sync import (
 from knowledge.models import (
     Project,
     ProjectSyncRun,
-    SyncJob,
 )
 
 

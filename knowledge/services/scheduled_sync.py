@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from datetime import timedelta
-from knowledge.services.sync_jobs import finalize_sync_job
+
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from knowledge.models import ProjectSyncRun, SyncJob
-
+from knowledge.services.sync_jobs import finalize_sync_job
 
 SCHEDULED_REQUESTED_BY = "celery-beat"
 

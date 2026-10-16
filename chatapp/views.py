@@ -1,18 +1,25 @@
 import json
+
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
-from asgiref.sync import sync_to_async
-from core.security.guard import (
-    inspect_question, Decision, SECURITY_RESPONSE, PRIVACY_RESPONSE,
-    SECRET_RESPONSE, NO_EVIDENCE_RESPONSE, question_hash,
-)
-from core.rag.service import answer_stream, GroundingValidationError
-from core.llm.ollama import EmptyGenerationError
-from core.mcp.client import search_knowledge_via_mcp
+
 from accounts.services import authorized_projects_sync, resolve_query_scope
 from auditlog.models import AuditEvent
+from core.llm.ollama import EmptyGenerationError
+from core.mcp.client import search_knowledge_via_mcp
+from core.rag.service import GroundingValidationError, answer_stream
+from core.security.guard import (
+    NO_EVIDENCE_RESPONSE,
+    PRIVACY_RESPONSE,
+    SECRET_RESPONSE,
+    SECURITY_RESPONSE,
+    Decision,
+    inspect_question,
+    question_hash,
+)
 
 
 @login_required

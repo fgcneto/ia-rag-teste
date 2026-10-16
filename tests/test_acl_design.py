@@ -1,4 +1,5 @@
 from pathlib import Path
+
 ROOT=Path(__file__).resolve().parents[1]
 def test_analyst_rule_exists():
  t=(ROOT/'accounts/services.py').read_text();assert 'Role.ANALYST' in t and 'Project.objects.filter(enabled=True)' in t

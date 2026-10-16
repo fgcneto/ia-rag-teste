@@ -1,4 +1,6 @@
 from .base import SourceControlProvider
+
+
 class GitLabProvider(SourceControlProvider):
  """Contrato preparado para a migração institucional. Implementação REST entra na próxima etapa."""
  async def repository(self,full_name): raise NotImplementedError('GitLab provider ainda não configurado')

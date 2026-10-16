@@ -1,5 +1,7 @@
 import json
+
 from django.conf import settings
+
 from .auth import issue_actor_token
 
 

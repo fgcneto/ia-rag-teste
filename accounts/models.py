@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+
 class Role(models.TextChoices):
     ANALYST='ANALYST','Analista de Sistemas'
     DEVELOPER='DEVELOPER','Desenvolvedor'

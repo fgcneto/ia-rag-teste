@@ -1,18 +1,19 @@
+from datetime import timedelta
+from types import SimpleNamespace
+
 import pytest
 from django.db import IntegrityError, transaction
-from types import SimpleNamespace
-from knowledge import tasks
-from datetime import timedelta
 from django.utils import timezone
-from knowledge.models import SyncJob
-from knowledge.services.scheduled_sync import (
-    SCHEDULED_REQUESTED_BY,
-    reserve_scheduled_sync_job,
-)
 
+from knowledge import tasks
 from knowledge.models import (
     Project,
     ProjectSyncRun,
+    SyncJob,
+)
+from knowledge.services.scheduled_sync import (
+    SCHEDULED_REQUESTED_BY,
+    reserve_scheduled_sync_job,
 )
 
 

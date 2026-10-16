@@ -1,11 +1,13 @@
 import re
 from collections.abc import AsyncIterator
+
 from asgiref.sync import sync_to_async
-from pgvector.django import CosineDistance
 from django.conf import settings
+from pgvector.django import CosineDistance
+
+from core.llm.ollama import chat, embed, stream_chat
+from core.security.guard import NO_EVIDENCE_RESPONSE, output_guard
 from knowledge.models import KnowledgeChunk
-from core.llm.ollama import embed,chat,stream_chat
-from core.security.guard import output_guard,NO_EVIDENCE_RESPONSE
 
 
 class GroundingValidationError(RuntimeError):

@@ -1,7 +1,10 @@
-from django.core.management.base import BaseCommand,CommandError
 from django.contrib.auth import get_user_model
-from accounts.models import Role,UserAccessProfile,UserProjectAccess
+from django.core.management.base import BaseCommand, CommandError
+
+from accounts.models import Role, UserAccessProfile, UserProjectAccess
 from knowledge.models import Project
+
+
 class Command(BaseCommand):
  help='Cria/atualiza usuário com perfil ANALYST ou DEVELOPER e escopo opcional de projetos.'
  def add_arguments(self,p):

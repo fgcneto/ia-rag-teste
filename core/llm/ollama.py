@@ -1,6 +1,10 @@
+import json
 from collections.abc import AsyncIterator
-import json,httpx
+
+import httpx
 from django.conf import settings
+
+
 def payload(system,user,stream): return {'model':settings.OLLAMA_CHAT_MODEL,'stream':stream,'messages':[{'role':'system','content':system},{'role':'user','content':user}],'options':{'temperature':0.1,'num_ctx':settings.OLLAMA_NUM_CTX,'num_predict':settings.OLLAMA_NUM_PREDICT,'num_thread':settings.OLLAMA_NUM_THREAD},'keep_alive':'30m'}
 async def embed(texts):
     async with httpx.AsyncClient(timeout=120) as c:

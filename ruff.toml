@@ -1,0 +1,6 @@
+# Configuração Ruff — AI Django MCP
+
+[lint.per-file-ignores]
+"**/migrations/*.py" = ["RUF012"]
+"accounts/models.py" = ["RUF012"]
+"knowledge/models.py" = ["RUF012"]

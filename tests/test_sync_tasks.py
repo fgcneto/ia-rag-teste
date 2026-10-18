@@ -1,8 +1,10 @@
+import traceback
 from io import StringIO
 from types import SimpleNamespace
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.utils import timezone
 
 from knowledge import tasks
@@ -194,6 +196,7 @@ def test_failed_child_marks_job_failed(
     monkeypatch,
 ):
     settings.SOURCE_PROVIDER = "github"
+    fake_secret = "PR14_FAKE_CHILD_TOKEN_789"
 
     class FailingProvider:
         async def branch(
@@ -202,7 +205,7 @@ def test_failed_child_marks_job_failed(
             branch_name,
         ):
             raise RuntimeError(
-                "synthetic provider failure"
+                f"Provider failure: token={fake_secret}"
             )
 
     monkeypatch.setattr(
@@ -240,10 +243,7 @@ def test_failed_child_marks_job_failed(
         project_id=project.id,
     )
 
-    with pytest.raises(
-        RuntimeError,
-        match="synthetic provider failure",
-    ):
+    with pytest.raises(RuntimeError) as exc_info:
         tasks.sync_project_run.run(
             reservation.run.id
         )
@@ -255,6 +255,11 @@ def test_failed_child_marks_job_failed(
         ProjectSyncRun.Status.FAILED
     )
     assert job.status == "FAILED"
+    assert fake_secret not in (reservation.run.error or "")
+    assert fake_secret not in str(exc_info.value)
+    assert fake_secret not in "".join(
+        traceback.format_exception(exc_info.value)
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -422,4 +427,164 @@ def test_management_command_dispatches_celery(
     )
     assert "enfileirado" in (
         stdout.getvalue()
+    )
+
+@pytest.mark.django_db(transaction=True)
+def test_dispatch_failure_does_not_persist_sensitive_exception(
+    settings,
+    monkeypatch,
+):
+    settings.SOURCE_PROVIDER = "github"
+
+    provider = FakeProvider(sha="remote-sha")
+
+    monkeypatch.setattr(
+        tasks,
+        "get_source_provider",
+        lambda *args, **kwargs: provider,
+    )
+
+    fake_secret = "PR14_FAKE_TOKEN_DO_NOT_USE_123"
+
+    def fail_delay(run_id):
+        raise RuntimeError(
+            f"Broker authentication failed: token={fake_secret}"
+        )
+
+    monkeypatch.setattr(
+        tasks.sync_project_run,
+        "delay",
+        fail_delay,
+    )
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.QUEUED,
+    )
+
+    result = tasks.sync_repositories.run(
+        job_id=job.id,
+    )
+
+    job.refresh_from_db()
+
+    run = ProjectSyncRun.objects.get(job=job)
+
+    assert run.status == ProjectSyncRun.Status.FAILED
+    assert job.status == SyncJob.Status.FAILED
+
+    assert len(job.result_json["dispatch_errors"]) == 1
+
+    assert fake_secret not in (run.error or "")
+    assert fake_secret not in str(job.result_json)
+    assert fake_secret not in str(result)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_provider_failure_does_not_persist_sensitive_exception(
+    settings,
+    monkeypatch,
+):
+    settings.SOURCE_PROVIDER = "github"
+
+    fake_secret = "PR14_FAKE_PROVIDER_TOKEN_456"
+
+    class FailingProvider:
+        async def repositories(self):
+            raise RuntimeError(
+                f"Provider authentication failed: token={fake_secret}"
+            )
+
+    monkeypatch.setattr(
+        tasks,
+        "get_source_provider",
+        lambda *args, **kwargs: FailingProvider(),
+    )
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.QUEUED,
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        tasks.sync_repositories.run(job_id=job.id)
+
+    job.refresh_from_db()
+
+    assert job.status == SyncJob.Status.FAILED
+    assert fake_secret not in (job.error or "")
+    assert fake_secret not in str(job.result_json)
+    assert fake_secret not in str(exc_info.value)
+
+
+
+@pytest.mark.django_db(transaction=True)
+def test_scheduled_failure_sanitizes_exception(monkeypatch):
+    fake_secret = "PR14_FAKE_SCHEDULE_TOKEN_321"
+
+    job = SyncJob.objects.create(
+        status=SyncJob.Status.QUEUED,
+    )
+
+    reservation = SimpleNamespace(
+        created=True,
+        job=job,
+        reason="scheduled",
+    )
+
+    monkeypatch.setattr(
+        tasks,
+        "reserve_scheduled_sync_job",
+        lambda: reservation,
+    )
+
+    def fail_delay(job_id, force):
+        raise RuntimeError(
+            f"Broker failure: token={fake_secret}"
+        )
+
+    monkeypatch.setattr(
+        tasks.sync_repositories,
+        "delay",
+        fail_delay,
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        tasks.scheduled_sync_tick.run()
+
+    job.refresh_from_db()
+
+    assert job.status == SyncJob.Status.FAILED
+    assert fake_secret not in (job.error or "")
+    assert fake_secret not in str(exc_info.value)
+    assert fake_secret not in "".join(
+        traceback.format_exception(exc_info.value)
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_management_command_failure_sanitizes_exception(
+    monkeypatch,
+):
+    fake_secret = "PR14_FAKE_COMMAND_TOKEN_654"
+
+    def fail_delay(job_id, force):
+        raise RuntimeError(
+            f"Broker failure: token={fake_secret}"
+        )
+
+    monkeypatch.setattr(
+        "knowledge.management.commands."
+        "sync_knowledge.sync_repositories.delay",
+        fail_delay,
+    )
+
+    with pytest.raises(CommandError) as exc_info:
+        call_command("sync_knowledge")
+
+    job = SyncJob.objects.latest("id")
+
+    assert job.status == SyncJob.Status.FAILED
+    assert fake_secret not in (job.error or "")
+    assert fake_secret not in str(exc_info.value)
+    assert fake_secret not in "".join(
+        traceback.format_exception(exc_info.value)
     )

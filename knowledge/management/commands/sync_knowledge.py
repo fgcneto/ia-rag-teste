@@ -47,9 +47,10 @@ class Command(BaseCommand):
                 )
             )
 
-        except Exception as exc:
+        except Exception:  # noqa: BLE001
+            # Não persistir detalhes internos do broker.
             job.status = "FAILED"
-            job.error = repr(exc)
+            job.error = "Falha ao enviar sincronização ao Celery."
             job.finished_at = timezone.now()
 
             job.save(
@@ -63,7 +64,7 @@ class Command(BaseCommand):
             raise CommandError(
                 "Não foi possível enviar "
                 "a sincronização ao Celery."
-            ) from exc
+            ) from None
 
         job.task_id = result.id
 

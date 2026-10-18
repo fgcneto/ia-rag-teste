@@ -119,11 +119,12 @@ def sync_project_run(
             "result": result.as_dict(),
         }
 
-    except Exception as exc:
+    except Exception:  # noqa: BLE001
+        # Fronteira de falha: não persistir exceções do provedor.
         finish_project_sync(
             run_id=run.id,
             status=ProjectSyncRun.Status.FAILED,
-            error=repr(exc),
+            error="Falha ao sincronizar repositório.",
             task_id=task_id,
         )
 
@@ -131,7 +132,9 @@ def sync_project_run(
             run.job_id
         )
 
-        raise
+        raise RuntimeError(
+            "Falha ao sincronizar repositório."
+        ) from None
 
 
 @shared_task(bind=True)
@@ -166,9 +169,10 @@ def scheduled_sync_tick(self):
             force=False,
         )
 
-    except Exception as exc:
+    except Exception:  # noqa: BLE001
+        # Falha de publicação: registrar apenas mensagem segura.
         job.status = SyncJob.Status.FAILED
-        job.error = repr(exc)
+        job.error = "Falha ao agendar sincronização no Celery."
         job.finished_at = timezone.now()
 
         job.save(
@@ -179,7 +183,9 @@ def scheduled_sync_tick(self):
             ]
         )
 
-        raise
+        raise RuntimeError(
+            "Falha ao agendar sincronização no Celery."
+        ) from None
 
     job.task_id = result.id
 
@@ -268,9 +274,11 @@ def sync_repositories(
             provider.repositories
         )()
 
-    except Exception as exc:
+    except Exception:  # noqa: BLE001
+        # Fronteira de falha da orquestração Celery:
+        # persistir apenas mensagem segura.
         job.status = "FAILED"
-        job.error = repr(exc)
+        job.error = "Falha ao consultar repositórios no provedor."
         job.finished_at = timezone.now()
 
         job.save(
@@ -281,7 +289,9 @@ def sync_repositories(
             ]
         )
 
-        raise
+        raise RuntimeError(
+            "Falha ao consultar repositórios no provedor."
+        ) from None
 
     dispatches = []
     dispatch_errors = []
@@ -451,7 +461,7 @@ def sync_repositories(
                     )
                 )
 
-            except Exception as exc:  # noqa: BLE001 - Falha de publicação Celery
+            except Exception:  # noqa: BLE001 - Falha de publicação Celery
                 finish_project_sync(
                     run_id=run.id,
                     status=(
@@ -461,14 +471,14 @@ def sync_repositories(
                     ),
                     error=(
                         "Falha ao publicar "
-                        f"task: {exc!r}"
+                        "task Celery."
                     ),
                 )
 
                 dispatch_errors.append({
                     "repository": full,
                     "run_id": run.id,
-                    "error": repr(exc),
+                    "error": "Falha ao publicar task Celery.",
                 })
 
                 continue
@@ -498,7 +508,7 @@ def sync_repositories(
                 "dispatched": True,
             })
 
-        except Exception as exc:  # noqa: BLE001 - Isolamento de falhas da orquestração
+        except Exception:  # noqa: BLE001 - Isolamento de falhas da orquestração
             if (
                 run is not None
                 and run.status
@@ -511,12 +521,12 @@ def sync_repositories(
                         .Status
                         .FAILED
                     ),
-                    error=repr(exc),
+                    error="Falha ao processar repositório.",
                 )
 
             dispatch_errors.append({
                 "repository": full,
-                "error": repr(exc),
+                "error": "Falha ao processar repositório.",
             })
 
     job.refresh_from_db()

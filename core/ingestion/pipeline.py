@@ -60,9 +60,11 @@ def is_allowed_path(path: str, size: int | None = None) -> bool:
         return False
     if size is not None and size > settings.INGEST_MAX_FILE_BYTES:
         return False
-    if settings.INGEST_ALLOWED_EXTENSIONS and p.suffix.lower() not in settings.INGEST_ALLOWED_EXTENSIONS and name not in ALLOWED_EXTENSIONLESS_NAMES:
-        return False
-    return True
+    return not (
+        settings.INGEST_ALLOWED_EXTENSIONS
+        and p.suffix.lower() not in settings.INGEST_ALLOWED_EXTENSIONS
+        and name not in ALLOWED_EXTENSIONLESS_NAMES
+    )
 
 
 def chunk_text(text: str) -> list[str]:

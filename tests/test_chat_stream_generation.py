@@ -227,7 +227,7 @@ def test_grounding_validation_failure_is_audited_as_error_not_allow(
         try:
             async for chunk in response.streaming_content:
                 body += chunk
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - Captura intencional na fronteira de falha
             return response, body.decode(), exc
 
         return response, body.decode(), None

@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
-from accounts.models import Role, UserAccessProfile, UserProjectAccess
+from accounts.models import UserAccessProfile, UserProjectAccess
 from knowledge.models import Project
 
 

@@ -2,7 +2,7 @@ from asgiref.sync import sync_to_async
 
 from knowledge.models import Project
 
-from .models import Role
+from .models import Role, UserAccessProfile
 
 
 def allowed_project_ids_sync(user):
@@ -13,7 +13,7 @@ def allowed_project_ids_sync(user):
         return set(Project.objects.filter(enabled=True).values_list('id', flat=True))
     try:
         profile = user.access_profile
-    except Exception:
+    except UserAccessProfile.DoesNotExist:
         return set()
     if not profile.active:
         return set()

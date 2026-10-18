@@ -43,7 +43,7 @@ async def chat_stream(request):
         scope = payload.get('scope') or {}
         mode = scope.get('mode', 'all')
         requested_project_ids = scope.get('project_ids') or []
-    except Exception:
+    except (json.JSONDecodeError, UnicodeDecodeError, TypeError, AttributeError):
         return JsonResponse({'detail': 'JSON inválido'}, status=400)
 
     try:
@@ -82,7 +82,7 @@ async def chat_stream(request):
             sources = await search_knowledge_via_mcp(
                 request.user, sec.redacted, effective_project_ids
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - Captura intencional na fronteira de falha
             await sync_to_async(AuditEvent.objects.create)(
                 user=request.user, event_type='chat', decision='MCP_ERROR',
                 reason=type(exc).__name__, question_hash=question_hash(question)

@@ -451,7 +451,7 @@ def sync_repositories(
                     )
                 )
 
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - Falha de publicação Celery
                 finish_project_sync(
                     run_id=run.id,
                     status=(
@@ -498,7 +498,7 @@ def sync_repositories(
                 "dispatched": True,
             })
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - Isolamento de falhas da orquestração
             if (
                 run is not None
                 and run.status

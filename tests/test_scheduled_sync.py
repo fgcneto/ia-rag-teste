@@ -95,12 +95,11 @@ def test_database_rejects_two_active_scheduled_jobs():
         requested_by=SCHEDULED_REQUESTED_BY,
     )
 
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            SyncJob.objects.create(
-                status=SyncJob.Status.QUEUED,
-                requested_by=SCHEDULED_REQUESTED_BY,
-            )
+    with pytest.raises(IntegrityError), transaction.atomic():
+        SyncJob.objects.create(
+            status=SyncJob.Status.QUEUED,
+            requested_by=SCHEDULED_REQUESTED_BY,
+        )
 
 @pytest.mark.django_db(transaction=True)
 def test_integrity_error_falls_back_to_active_job(
@@ -264,7 +263,7 @@ def test_scheduled_tick_marks_job_failed_when_dispatch_fails(
 
     with pytest.raises(
         RuntimeError,
-        match="synthetic broker failure",
+        match=r"Falha ao agendar sincronização no Celery\.",
     ):
         tasks.scheduled_sync_tick.run()
 
@@ -272,7 +271,7 @@ def test_scheduled_tick_marks_job_failed_when_dispatch_fails(
 
     assert job.status == SyncJob.Status.FAILED
     assert job.finished_at is not None
-    assert "synthetic broker failure" in job.error
+    assert job.error == "Falha ao agendar sincronização no Celery."
 
 @pytest.mark.django_db(transaction=True)
 def test_stale_scheduled_job_is_recovered():

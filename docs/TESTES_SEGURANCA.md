@@ -742,3 +742,11 @@ Próximos gates:
     CI security gates
     prompt injection / trust boundary
     sync_knowledge controlado
+
+## 25. Nota de rastreabilidade — revisão documental RC3 (20/10/2026)
+
+Este relatório preserva **integralmente** os resultados históricos de 26/09/2026: `29 tests collected`, `29 passed` e `2 warnings`, além de `manage.py check` e `makemigrations --check --dry-run` então executados. Eles não são reclassificados como execução atual da RC3.
+
+Há relato operacional separado de **93 testes aprovados** na RC3 e de CI de push em `main` aprovado após o PR #18. Esses registros constam de `ENCERRAMENTO_RC3.md`, mas o pacote documental recebido **não contém logs brutos, código completo, arquivos Compose ou manifestos** para reexecutar ou atestar esses resultados nesta revisão. Não somar os conjuntos 29 e 93, nem inferir cobertura de segurança universal.
+
+Antes do aceite formal, anexar evidências não sensíveis com data, commit, ambiente, comando, resultado e identificação da execução. Manter `.env`, credenciais e dumps fora do repositório e dos anexos de PR.

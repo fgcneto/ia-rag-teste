@@ -2,7 +2,7 @@
 
 **Repositório:** `fgcneto/ia-rag-teste`  
 **Versão base:** `v0.3.0`  
-**Atualizado em:** 30/09/2026
+**Atualizado em:** 20/10/2026 (revisão documental RC3; sem nova release)
 
 ## 1. Objetivo
 
@@ -39,7 +39,7 @@ A base atual contém:
 - stale recovery para ciclos periódicos órfãos;
 - observabilidade de execução no Django Admin em modo somente leitura.
 
-A v0.3.0 permanece um MVP técnico em validação.
+A v0.3.0 permanece um MVP técnico em validação. A RC3 possui evidências de governança e testes relatadas, mas o aceite técnico global e a liberação para produção **não estão comprovados**. Consultar `ENCERRAMENTO_RC3.md`.
 
 ## 3. Base implementada — ingestão segura
 
@@ -241,6 +241,27 @@ Exemplos:
 - exemplo incompatível com a implementação;
 - seção de segurança incompleta;
 - referência a versão antiga.
+
+### 7.1 DOC-001 — inspeção documental dos projetos externos autorizados (proposta)
+
+**Estado:** especificação proposta, **não implementada**. A função deverá inspecionar documentação e código de projetos externos previamente autorizados, identificar divergências comprováveis e gerar relatório ou artefato para o desenvolvedor copiar/aplicar manualmente. Não deve modificar diretamente repositórios externos nem o repositório do próprio AI Knowledge.
+
+Escopo inicial recomendado: arquivos do repositório já permitidos pelo pipeline e pela ACL. Issues, PR/MR e Wiki só poderão ser incorporados após suporte técnico, avaliação de permissões e controles específicos de ingestão; **não** são fontes atualmente indexadas pelo MVP.
+
+Critérios mínimos para desenvolvimento e aceite:
+
+1. Validar allowlist, usuário e projetos efetivamente autorizados antes de coletar e recuperar conteúdo.
+2. Registrar repositório, branch, commit, caminhos e evidências citáveis, com indicação explícita de lacunas de cobertura.
+3. Separar fatos verificados, inferências e sugestões; sem evidência suficiente, sinalizar "não verificado".
+4. Gerar artefato Markdown ou patch **proposto**, sem executar escrita, commit, push ou merge.
+5. Impedir exposição de segredos/PII e tratar conteúdo recuperado como dado não confiável.
+6. Submeter propostas à revisão humana e testes antes de qualquer aplicação no Git.
+
+A especificação de trabalho está em `ESPECIFICACAO_DOC_001.md`. DOC-001 não é um gate do CI do próprio AI Django MCP.
+
+### 7.2 Pendências operacionais para aceite da RC3
+
+Antes de qualquer declaração de prontidão de produção, registrar evidências de: testes operacionais com comando/commit/ambiente; revisão de código, Compose e dependências; backup/restore validado em ambiente isolado; política de reinicialização automática; HTTPS e segredos; monitoramento, alertas e RPO/RTO; responsáveis e prazos para riscos residuais. O runbook inicial `RUNBOOK_BACKUP_RESTORE_RC3.md` é um **rascunho não executado**.
 
 ## 8. Formato das sugestões de documentação
 

@@ -3,6 +3,7 @@
 **Repositório:** `fgcneto/ia-rag-teste`  
 **Versão de referência:** `v0.3.0`  
 **Data de referência:** 30/09/2026
+**Revisão documental RC3:** 20/10/2026
 
 ## 1. Objetivo
 
@@ -382,3 +383,13 @@ Três invariantes são obrigatórias:
 ```
 
 Qualquer evolução arquitetural deve preservar essas invariantes.
+
+## 19. Governança e riscos residuais da RC3
+
+A revisão documental RC3 **não** substitui validação de produção. Permanecem pendentes de evidência formal: HTTPS/proxy reverso, política de retenção e acesso a logs, rotação/revogação de credenciais, monitoramento e alertas, RPO/RTO, recuperação automática após reinício do host e restore completo com verificação de integridade. Consultar `ENCERRAMENTO_RC3.md` e `RUNBOOK_BACKUP_RESTORE_RC3.md`.
+
+Os Rulesets e gates de CI relatados para `homolog`, `prod` e `main` são evidência de governança do ciclo RC3, não garantia de revisão independente. Alterações em workflows sensíveis devem ser analisadas com cuidado, pois um controle implementado no próprio workflow pode ser alterado no mesmo PR. Não presumir exigência de aprovação por segundo mantenedor enquanto não existir revisor autorizado.
+
+A inspeção documental DOC-001, quando desenvolvida, deve operar apenas sobre **projetos externos explicitamente autorizados** e preservar a ACL por usuário, a allowlist e as políticas de DLP. A IA poderá gerar propostas e diffs, mas **não** deverá criar commits, fazer push, aprovar ou integrar PRs/MRs. A atualização local de documentos por scripts executados pelo mantenedor é uma atividade humana de manutenção, distinta das permissões da aplicação em produção.
+
+Nunca versionar `.env` nem incluir credenciais, dumps ou logs sensíveis nos artefatos de documentação. Usar `.env.example` apenas com placeholders não sensíveis. Para CI, criar um `.env` temporário com valores sintéticos quando o pipeline exigir esse arquivo, sem imprimir seus valores e sem persisti-lo como artefato.

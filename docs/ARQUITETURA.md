@@ -3,7 +3,7 @@
 **Repositório:** `fgcneto/ia-rag-teste`  
 **Versão de referência:** `v0.3.0`  
 **Data de referência:** 17/09/2026  
-**Estado:** MVP técnico em validação
+**Estado:** MVP técnico em validação; RC3 em revisão documental (20/10/2026)
 
 ## 1. Objetivo
 
@@ -191,7 +191,7 @@ KnowledgeChunk.objects \
 
 Esse comportamento é uma propriedade de segurança: conteúdo não autorizado não deve ser recuperado e posteriormente “filtrado pelo LLM”.
 
-O contexto recuperado deve ser tratado como dado não confiável, pois arquivos, README, Issues, Pull Requests e comentários podem conter prompt injection indireta.
+O contexto recuperado deve ser tratado como dado não confiável. Na ingestão atual, o conteúdo indexado é proveniente de **arquivos de repositórios autorizados**; README e comentários presentes nesses arquivos podem conter prompt injection indireta. Issues, Pull Requests e outras fontes externas são superfícies de risco para evoluções futuras, mas não fazem parte do pipeline de ingestão documentado nesta versão.
 
 ## 8. Fontes de conhecimento
 
@@ -211,7 +211,7 @@ Na v0.3.0, o GitLab Provider ainda não deve ser considerado operacional.
 
 ## 9. Indexação e sincronização da base de conhecimento
 
-A base de conhecimento possui pipeline seguro de ingestão para os repositórios autorizados do provider configurado.
+A base de conhecimento possui pipeline seguro de ingestão de **arquivos** dos repositórios autorizados do provider configurado. Não se deve inferir suporte operacional à ingestão de Issues ou Pull Requests.
 
 Fluxo de ingestão:
 
@@ -321,3 +321,12 @@ Em produção, o `web` deve ficar atrás de proxy reverso com HTTPS.
 - `../SECURITY.md`
 - `../GIT_WORKFLOW.md`
 - `Documentacao_Tecnica_AI_Knowledge_Django_MCP_v0.3.0.docx`
+- `ENCERRAMENTO_RC3.md` — avaliação documental e aceite condicionado da RC3.
+- `RUNBOOK_BACKUP_RESTORE_RC3.md` — procedimento de planejamento e verificação, **não validado**.
+- `ESPECIFICACAO_DOC_001.md` — proposta futura de inspeção documental, **não implementada**.
+
+## 13. Limites da revisão RC3 (20/10/2026)
+
+Esta revisão utiliza apenas os oito arquivos de documentação fornecidos pelo responsável técnico. Não foram disponibilizados código-fonte completo, manifestos, arquivos Compose ou logs brutos para verificação independente do runtime. O documento `ENCERRAMENTO_RC3.md` separa evidência histórica, relatos operacionais e pendências.
+
+A inspeção de documentação de **projetos externos autorizados** (DOC-001) é uma proposta futura, não um mecanismo implementado e não um gate de CI do próprio repositório. Mesmo quando implementada, a aplicação AI Knowledge deve manter acesso **somente leitura** ao source control; artefatos e patches serão aplicados por um desenvolvedor mediante revisão humana e Pull Request.

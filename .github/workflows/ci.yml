@@ -2,9 +2,18 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - homolog
+      - prod
+      - main
   push:
     branches:
+      - homolog
+      - prod
       - main
+
+permissions:
+  contents: read
 
 jobs:
   tests:
@@ -34,6 +43,66 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate promotion policy
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$PR_HEAD_REPO" != "$PR_BASE_REPO" ]]; then
+            echo "::error::Pull Requests de forks não são autorizados neste fluxo"
+            exit 1
+          fi
+
+          case "$PR_BASE" in
+            homolog)
+              case "$PR_HEAD" in
+                feature/*|fix/*|docs/*|chore/*|hotfix/*)
+                  ;;
+                *)
+                  echo "::error::Origem não autorizada para homolog: $PR_HEAD"
+                  exit 1
+                  ;;
+              esac
+              ;;
+            prod)
+              if [[ "$PR_HEAD" != "homolog" ]]; then
+                echo "::error::prod aceita PR somente de homolog"
+                exit 1
+              fi
+              ;;
+            main)
+              if [[ "$PR_HEAD" != "prod" ]]; then
+                echo "::error::main aceita PR somente de prod"
+                exit 1
+              fi
+
+              # O checkout de um PR usa o commit de merge de teste.
+              # Sua árvore deve ser idêntica à árvore da origem prod.
+              expected_tree="$(git rev-parse "${PR_HEAD_SHA}^{tree}")"
+              actual_tree="$(git rev-parse "HEAD^{tree}")"
+
+              if [[ "$expected_tree" != "$actual_tree" ]]; then
+                echo "::error::O merge prod -> main altera o conteúdo da origem"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Destino de PR não autorizado: $PR_BASE"
+              exit 1
+              ;;
+          esac
+
+          echo "Política de promoção validada: $PR_HEAD -> $PR_BASE"
 
       - uses: actions/setup-python@v5
         with:
@@ -45,6 +114,9 @@ jobs:
       - name: Compile Python
         run: python -m compileall -q .
 
+      - name: Prepare temporary environment
+        run: cp .env.example .env
+
       - name: Django system check
         run: python manage.py check
 
@@ -55,6 +127,4 @@ jobs:
         run: pytest -q
 
       - name: Validate Docker Compose
-        run: |
-          cp .env.example .env
-          docker compose --env-file .env config >/dev/null
+        run: docker compose --env-file .env config >/dev/null

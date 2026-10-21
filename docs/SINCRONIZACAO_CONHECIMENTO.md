@@ -250,3 +250,9 @@ Permanecem como evolução futura:
 - métricas e dashboards dedicados;
 - alertas operacionais externos;
 - implementação completa do provider GitLab institucional.
+
+## 13. Continuidade e recuperação — limites RC3
+
+Na operação local da RC3, foi relatado reinício **manual** dos containers existentes após reboot do Ubuntu, sem recriação de volumes. Isso **não** comprova inicialização automática após reboot, política de restart ou recuperação integral de jobs. O comportamento deve ser testado em ambiente controlado, registrando comandos, horários, versões e resultados.
+
+A verificação de backups e a eventual restauração de PostgreSQL exigem um procedimento aprovado, com banco de destino isolado e teste pós-restore. O documento `RUNBOOK_BACKUP_RESTORE_RC3.md` é um roteiro preliminar **não validado**, sem comandos destrutivos. Não manipular manualmente estados de `SyncJob` ou `ProjectSyncRun` sem diagnóstico e evidências.

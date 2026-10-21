@@ -42,15 +42,21 @@ docker compose --env-file .env -f compose.yaml -f compose.dev.yaml exec web pyth
 Após a execução, confira projetos e chunks sem exibir o conteúdo indexado:
 
 ```powershell
-docker compose --env-file .env -f compose.yaml -f compose.dev.yaml exec web python manage.py shell -c "from knowledge.models import Project,KnowledgeChunk; print(list(Project.objects.values('id','path_with_namespace','last_repository_sha','indexed_at'))); print(list(KnowledgeChunk.objects.values('project_id','source_type').order_by('project_id').annotate()))"
+docker compose --env-file .env -f compose.yaml -f compose.dev.yaml exec web python manage.py shell -c "from knowledge.models import Project; print(list(Project.objects.values('id','path_with_namespace','last_repository_sha','indexed_at')))"
 ```
 
 Para contagem por projeto, prefira:
 
 ```powershell
-docker compose --env-file .env -f compose.yaml -f compose.dev.yaml exec web python manage.py shell -c "from django.db.models import Count; from knowledge.models import Project; print(list(Project.objects.annotate(chunks=Count('chunks')).values('id','path_with_namespace','chunks','last_repository_sha','indexed_at')))"
+docker compose --env-file .env -f compose.yaml -f compose.dev.yaml exec web python manage.py shell -c "from django.db.models import Count; from knowledge.models import KnowledgeChunk; print(list(KnowledgeChunk.objects.values('project_id').annotate(chunks=Count('id')).order_by('project_id')))"
 ```
 
 ## Limites
 
-Este incremento indexa arquivos do repositório. Issues e Pull Requests permanecem fora do pipeline. A detecção de segredos por regex é uma camada mínima; Gitleaks ou ferramenta equivalente continua recomendada antes de produção. O Presidio precisa ser calibrado e validado para os tipos de PII e idioma do ambiente institucional.
+Este incremento indexa **arquivos do repositório**. Issues e Pull Requests permanecem fora do pipeline. A detecção de segredos por regex é uma camada mínima; Gitleaks ou ferramenta equivalente continua recomendada antes de produção. O Presidio precisa ser calibrado e validado para os tipos de PII e idioma do ambiente institucional.
+
+## Revisão RC3 — limites de comprovação
+
+As instruções acima descrevem o ambiente de desenvolvimento **Docker Compose**. A operação local da RC3 relatada no encerramento utilizou **Podman rootless** em Ubuntu; os comandos não devem ser transpostos automaticamente sem identificar arquivos Compose, diretório de execução, nomes de serviço e configuração efetiva. Esta revisão não executou a ingestão nem confirmou contagens no banco.
+
+A proposta DOC-001 de inspeção documental externa permanece **não implementada** e não amplia o escopo das fontes ingeridas. A geração de relatórios ou patches deve ocorrer sem conceder permissão de escrita ao provider.
